@@ -8,7 +8,7 @@
 </head>
 <body>
      <header class="hero">
-        <h1>🍽️ My Food Recipe Blog</h1>
+        <h1>🍽️ Bii's Food Recipe Blog</h1>
         <p>Share your favorite meals and recipe with the world!🤤</p>
     </header>
     <div class="container">
@@ -18,15 +18,28 @@
         <textarea id="body" placeholder="Write your recipe..." required cols="50px" rows="15px"></textarea>
         <input type="file" id="imageInput" accept="image/*" />
         <img id="previewImage" style="max-width: 100%; border-radius: 10px; margin-top: 10px;" />
-        <button type="submit">Create Recipe</button>
+        <button type="submit" id="submitBtn">Create Recipe</button>
         </form>
     </div>
+
+    <div id="customAlert" class="alert-hidden">
+        <span class="alert-icon"></span>
+        <span id="alertMessage"></span>
+    </div>
+
+
+
     <input type="text" id="searchInput" placeholder="Search recipes...">
     <div class="post-container">
         <button id="showAllPostsBtn">Show All Recipes</button>
-        <div id="localPostsContainer"></div>
+        <div id="localPostsContainer">
+            <!-- Posts will be displayed here -->
+        </div>
     </div>
 
+    <footer>
+    <p>&copy; 2025 Bii's Food Recipe Blog.</p>
+    </footer>
     <script src="/script.js"></script>
 </body>
 </html>

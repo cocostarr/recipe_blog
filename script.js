@@ -7,13 +7,18 @@ const postForm = document.getElementById("postForm");
 const postTitle = document.getElementById("title");
 const postBody = document.getElementById("body");
 const postImage = document.getElementById("imageInput");
+const previewImage = document.getElementById("previewImage"); 
+const submitBtn = document.getElementById("submitBtn");
+
 const showAllPostButton = document.getElementById("showAllPostsBtn");
 const localPostContainer = document.getElementById("localPostsContainer");
 const searchInput = document.getElementById("searchInput");
-const previewImage = document.getElementById("previewImage"); 
 
+let isEditing = false;
+let editId = null;
 
-function toBase64(file) {
+// Converts a file to a base64 string so it can be saved in localStorage.
+function toBase64(file){
     return new Promise((resolve, reject) => {
         const reader = new FileReader();  // Use FileReader to read files in the browser.
         reader.onload = () => resolve(reader.result); 
@@ -21,6 +26,40 @@ function toBase64(file) {
         reader.readAsDataURL(file);
     });
 }
+
+function saveToStorage(){
+    localStorage.setItem("posts", JSON.stringify(localDBS));
+}
+
+// Custom Alert
+function showCustomAlert(message) {
+    const alertBox = document.getElementById("customAlert");
+    const alertText = document.getElementById("alertMessage");
+
+    if (!alertBox || !alertText) return;
+
+    alertText.textContent = message;
+    alertBox.classList.add("show");
+
+    // Remove any previous scroll listener and timer
+    clearTimeout(alertBox.hideTimeout);
+    window.removeEventListener("scroll", alertBox.scrollHandler);
+
+    // Hide after 3 seconds
+    alertBox.hideTimeout = setTimeout(() => {
+        alertBox.classList.remove("show");
+    }, 3000);
+
+    // Hide on scroll
+    alertBox.scrollHandler = () => {
+        alertBox.classList.remove("show");
+        clearTimeout(alertBox.hideTimeout);
+        window.removeEventListener("scroll", alertBox.scrollHandler);
+    };
+
+    window.addEventListener("scroll", alertBox.scrollHandler);
+}
+
 
 // PREVIEW IMAGE ON SELECTION
 let currentImageBase64 = ""; 
@@ -40,26 +79,50 @@ postImage.addEventListener("change", async (event) => {
 
 // TO CREATE POST
 postForm.addEventListener("submit", async (e) => {
-    e.preventDefault();  // e.preventDefault() stops the page from refreshing when you submit the form.
+    e.preventDefault();
 
-    const newPost = {
-        id: Date.now(),
-        title: postTitle.value.trim(),
-        body: postBody.value.trim(),
-        image: currentImageBase64 || ""  
-    };
+    const title = postTitle.value.trim();
+    const body = postBody.value.trim();
 
-    localDBS.push(newPost);
-    localStorage.setItem("posts", JSON.stringify(localDBS)); // To make sure posts are saved even after refresh, save localDBS into localStorage.
-    postForm.reset(); // Reset the form to blank.
+    if (!title || !body) {
+        showCustomAlert("Title and body are required.");
+        return;
+    }
+
+    if (isEditing) {
+        const index = localDBS.findIndex(post => post.id === editId);
+        if (index !== -1) {
+            localDBS[index].title = title;
+            localDBS[index].body = body;
+            if (currentImageBase64) {
+                localDBS[index].image = currentImageBase64;
+            }
+        }
+        showCustomAlert("✔ Recipe Updated!");
+    } else {
+        const newPost = {
+            id: Date.now(),
+            title,
+            body,
+            image: currentImageBase64 || ""
+        };
+        localDBS.push(newPost);
+        showCustomAlert("✔ Recipe Created!");
+    }
+
+    saveToStorage();
+    postForm.reset();
     previewImage.style.display = "none";
-    currentImageBase64 = ""; 
-    alert("Recipe Created!");
+    currentImageBase64 = "";
+    isEditing = false;
+    editId = null;
+    submitBtn.textContent = "Create Post";
+    renderPosts();
 });
 
 
 // TO SHOW POSTS
-function renderPosts(filter = "") { // Filters posts based on the search input (filter).
+function renderPosts(filter = ""){
     localPostContainer.innerHTML = "";
 
     const filteredPosts = localDBS.filter(post => 
@@ -68,9 +131,9 @@ function renderPosts(filter = "") { // Filters posts based on the search input (
     );
 
     filteredPosts.forEach(post => {
-        const div = document.createElement("div");
-        div.className = "postpost-container";
-        div.innerHTML = `
+        const postDiv = document.createElement("div");
+        postDiv.className = "postpost-container";
+        postDiv.innerHTML = `
             <h3>${post.title}</h3>
             <p>${post.body}</p>
             ${post.image ? `<img src="${post.image}" alt="Post image" />` : ""}
@@ -78,42 +141,40 @@ function renderPosts(filter = "") { // Filters posts based on the search input (
             <button class="edit-btn" onclick="editPost(${post.id})">Edit</button>
             <button class="delete-btn" onclick="deletePost(${post.id})">Delete</button>
         `;
-        localPostContainer.appendChild(div);
+        localPostContainer.appendChild(postDiv);
     });
 }
 
 // SEARCH POST
 searchInput.addEventListener("input", () => {
-    const keyword = searchInput.value.trim();
-    renderPosts(keyword);
+    renderPosts(searchInput.value.trim());
 });
 
-// Show All Post
-showAllPostButton.addEventListener("click", () => renderPosts());
+
+// SHOW ALL POST
+showAllPostButton.addEventListener("click", () => {
+    renderPosts();
+});
+
 
 // EDIT POST
 window.editPost = function(id) {
     const post = localDBS.find(p => p.id === id);
     if (post) {
-        const newTitle = prompt("Edit title:", post.title);
-        const newBody = prompt("Edit body:", post.body);
-        post.title = newTitle || post.title;
-        post.body = newBody || post.body;
-        localStorage.setItem("posts", JSON.stringify(localDBS));
-        renderPosts();
+        postTitle.value = post.title;
+        postBody.value = post.body;
+        previewImage.src = post.image;
+        previewImage.style.display = post.image ? "block" : "none";
+        currentImageBase64 = post.image;
+        isEditing = true;
+        editId = id;
+        submitBtn.textContent = "Update Post";
     }
 };
-
-// NOTE
-// editPost() takes a function and finds the post with the matching ID.
-// window. makes it accessible from the HTML button's onclick(edit button onclick).
-// The prompt() is used to ask the user for a new title and body.
-// The post.title is Updated to the values inside the array.
-
 
 // DELETE POST
 window.deletePost = function(id){
     localDBS = localDBS.filter(post => post.id !== id);
-    localStorage.setItem("posts", JSON.stringify(localDBS)); // save update
+    saveToStorage();
     renderPosts();
 }
